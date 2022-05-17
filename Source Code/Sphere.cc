@@ -1,0 +1,88 @@
+#include <cstdlib>
+#include <cmath>
+
+#include "Vectors.h"
+#include "Casting.h"
+#include "Objects.h"
+
+using namespace std;
+
+const float pi = 4.0 * atan(1.0);
+
+// This function returns an intersection struct for an array and sphere.
+Intersection *Sphere::ray_intersect(Vector *ray) {
+  float distance = 0;
+  float b = 2*(ray->xd*(ray->x - x) + ray->yd*(ray->y - y) + ray->zd*(ray->z - z));
+  float c = pow(ray->x - x, 2) + pow(ray->y - y, 2) + pow(ray->z - z, 2) - pow(radius, 2);
+  float discriminant = pow(b, 2)-4*c;
+
+  if (discriminant == 0) {
+    distance = -b/2;
+  }
+  else if (discriminant > 0) {
+    float solution1 = (-b+sqrt(discriminant))/2;
+    float solution2 = (-b-sqrt(discriminant))/2;
+    if (solution1 <= solution2 && solution1 > 0) {
+      distance = solution1;
+    }
+    else if (solution1 > 0 && solution2 <= 0) {
+      distance = solution1;
+    }
+    else {
+      distance = solution2;
+    }
+  }
+
+  Intersection *contact = new Intersection;
+  contact->x = ray->x + (ray->xd * distance);
+  contact->y = ray->y + (ray->yd * distance);
+  contact->z = ray->z + (ray->zd * distance);
+  contact->distance = distance;
+  return contact;
+}
+
+// This function returns the normal vector at a given intersection with a sphere.
+Vector *Sphere::find_normal(Intersection *intersection) {
+  Vector *normal = new Vector;
+  normal->x = intersection->x;
+  normal->y = intersection->y;
+  normal->z = intersection->z;
+  normal->xd = intersection->x - x;
+  normal->yd = intersection->y - y;
+  normal->zd = intersection->z - z;
+  normal->distance = 0;
+  unit_vector(normal);
+  return normal;
+}
+
+
+void Sphere::texture_color(Intersection *intersection, float (&color)[3]) {
+  Vector *normal = find_normal(intersection);
+  float nan_test = normal->zd;
+  if (nan_test < -1) { // This eliminates error due to floating point inaccuracy.
+    nan_test = -1;
+  }
+  else if (nan_test > 1) {
+    nan_test = 1;
+  }
+
+  float phi = acos(nan_test);
+  float theta = atan(normal->yd/normal->xd);
+  delete normal;
+
+  float v = phi/pi;
+
+  if (theta < 0) {
+  theta += (2*pi);
+  }
+  float u = theta/(2*pi);
+
+  // I chose to use the clostest-neighbor coordinate conversion method.
+  int i = (int)round(u*(texture->width - 1));
+  int j = (int)round(v*(texture->height - 1));
+
+  color[0] = texture->map[i][j][0];
+  color[1] = texture->map[i][j][1];
+  color[2] = texture->map[i][j][2];
+  return;
+}
